@@ -1,0 +1,5 @@
+.env
+folioenv/
+venv/
+.venv/
+env/

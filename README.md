@@ -1,2 +1,2 @@
-# CryptoStock-Watch-Backend
-Backend for CryptoStock-Watch App
+# Folio-Backend
+Backend for folio app
