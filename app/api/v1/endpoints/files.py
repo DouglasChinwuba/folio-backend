@@ -5,7 +5,8 @@ import os
 from pydantic import BaseModel
 from db.crud.deps import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.crud.documents import load_document
+from db.crud.documents import create_document, get_documents_for_user
+from auth.dependencies import get_current_user
 
 router = APIRouter()
 s3_client = boto3.client('s3')
@@ -20,12 +21,11 @@ class DocumentCreate(BaseModel):
     filename: str
     s3_key: str
     content_type: str
-    owner_id: str
 
 @router.get("/generate_presigned_url")
-async def generate_presigned_url(user_id: str, filename: str, expiration : int, content_type : str):
+async def generate_presigned_url(filename: str, expiration : int, content_type : str, current_user_id = Depends(get_current_user)):
     try:
-        s3_key = f"users/{user_id}/{filename}"
+        s3_key = f"users/{current_user_id}/{filename}"
 
         presigned_url = s3_client.generate_presigned_url("put_object", 
                 Params={
@@ -47,6 +47,18 @@ async def generate_presigned_url(user_id: str, filename: str, expiration : int, 
 
 
 @router.post("/documents")
-async def document(payload: DocumentCreate, db: AsyncSession = Depends(get_db)):
-    document_info = await load_document(payload, db)
+async def document(payload: DocumentCreate, db: AsyncSession = Depends(get_db), current_user_id = Depends(get_current_user)):
+    document_info = await create_document(payload, db, current_user_id)
     return document_info
+
+@router.get("/get_documents")
+async def get_documents(current_user_id = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    user_documents = await get_documents_for_user(current_user_id, db)
+    return [
+        {
+            "id": str(doc.id),
+            "filename": doc.filename,
+            "created_at": doc.created_at,
+        }
+        for doc in user_documents
+    ] 
