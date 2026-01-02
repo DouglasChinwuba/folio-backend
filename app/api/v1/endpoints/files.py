@@ -1,15 +1,14 @@
 from fastapi import APIRouter, Depends
-import boto3
+from main import s3_client 
 import logging
 import os 
 from pydantic import BaseModel
 from db.crud.deps import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.crud.documents import create_document, get_documents_for_user
+from db.crud.documents import create_document, get_documents_for_user, delete_user_document
 from auth.dependencies import get_current_user
 
 router = APIRouter()
-s3_client = boto3.client('s3')
 
 logger = logging.getLogger()
 logging.basicConfig(
@@ -43,16 +42,21 @@ async def generate_presigned_url(filename: str, expiration : int, content_type :
         }
 
     except Exception as e:
-        logger.error("Error creating presigned url")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate presigned url"
+        )
 
 
 @router.post("/documents")
 async def document(payload: DocumentCreate, db: AsyncSession = Depends(get_db), current_user_id = Depends(get_current_user)):
+    logger.info(f"Creating document in db")
     document_info = await create_document(payload, db, current_user_id)
     return document_info
 
 @router.get("/get_documents")
 async def get_documents(current_user_id = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    logger.info(f"Getting user documents")
     user_documents = await get_documents_for_user(current_user_id, db)
     return [
         {
@@ -62,3 +66,9 @@ async def get_documents(current_user_id = Depends(get_current_user), db: AsyncSe
         }
         for doc in user_documents
     ] 
+
+@router.delete("/documents/{document_id}")
+async def delete_document(document_id: str, db: AsyncSession = Depends(get_db), current_user_id = Depends(get_current_user)):
+    logger.info(f"Deleting document")
+    message = await delete_user_document(document_id, db, current_user_id)
+    return message

@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.crud.deps import get_db
 from db.crud.users import get_or_create_user 
 
-
 router = APIRouter()
 
 cred = credentials.Certificate(os.getenv("FIREBASE_KEY_PATH"))
