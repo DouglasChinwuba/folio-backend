@@ -3,9 +3,11 @@ load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.v1.endpoints import files,auth
+from app.api.v1.endpoints import files,auth
+
 
 app = FastAPI()
+
 
 app.add_middleware(
     CORSMiddleware,
