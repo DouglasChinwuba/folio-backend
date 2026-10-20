@@ -1,9 +1,9 @@
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends, HTTPException, status
-from db.crud.deps import get_db
+from app.db.crud.deps import get_db
 from firebase_admin import auth
-from db.crud.users import get_or_create_user
+from app.db.crud.users import get_or_create_user
 
 
 security = HTTPBearer()

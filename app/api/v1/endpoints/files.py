@@ -1,30 +1,22 @@
-from fastapi import APIRouter, Depends
-from main import s3_client 
-import logging
+from fastapi import APIRouter, Depends, HTTPException
+from app.core.s3 import s3_client 
+from app.core.logging import logger
 import os 
-from pydantic import BaseModel
-from db.crud.deps import get_db
+from app.db.crud.deps import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.crud.documents import create_document, get_documents_for_user, delete_user_document
-from auth.dependencies import get_current_user
+from app.db.models import DocumentCreate, ShareDocumentRequest, SharedDocumentResponse
+from app.db.crud.documents import create_document, get_documents_for_user, delete_user_document, share_document_with_user, get_shared_documents_for_user
+from app.auth.dependencies import get_current_user
+from uuid import UUID
+from typing import List
+
 
 router = APIRouter()
 
-logger = logging.getLogger()
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s'
-)
-
-class DocumentCreate(BaseModel):
-    filename: str
-    s3_key: str
-    content_type: str
-
 @router.get("/generate_presigned_url")
-async def generate_presigned_url(filename: str, expiration : int, content_type : str, current_user_id = Depends(get_current_user)):
+async def generate_presigned_url(filename: str, expiration : int, content_type : str, current_user = Depends(get_current_user)):
     try:
-        s3_key = f"users/{current_user_id}/{filename}"
+        s3_key = f"users/{current_user.id}/{filename}"
 
         presigned_url = s3_client.generate_presigned_url("put_object", 
                 Params={
@@ -49,15 +41,15 @@ async def generate_presigned_url(filename: str, expiration : int, content_type :
 
 
 @router.post("/documents")
-async def document(payload: DocumentCreate, db: AsyncSession = Depends(get_db), current_user_id = Depends(get_current_user)):
+async def document(payload: DocumentCreate, db: AsyncSession = Depends(get_db), current_user = Depends(get_current_user)):
     logger.info(f"Creating document in db")
-    document_info = await create_document(payload, db, current_user_id)
+    document_info = await create_document(payload, db, current_user.id)
     return document_info
 
 @router.get("/get_documents")
-async def get_documents(current_user_id = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_documents(current_user = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     logger.info(f"Getting user documents")
-    user_documents = await get_documents_for_user(current_user_id, db)
+    user_documents = await get_documents_for_user(current_user.id, db)
     return [
         {
             "id": str(doc.id),
@@ -68,7 +60,16 @@ async def get_documents(current_user_id = Depends(get_current_user), db: AsyncSe
     ] 
 
 @router.delete("/documents/{document_id}")
-async def delete_document(document_id: str, db: AsyncSession = Depends(get_db), current_user_id = Depends(get_current_user)):
+async def delete_document(document_id: str, db: AsyncSession = Depends(get_db), current_user = Depends(get_current_user)):
     logger.info(f"Deleting document")
-    message = await delete_user_document(document_id, db, current_user_id)
+    message = await delete_user_document(document_id, db, current_user.id)
     return message
+
+@router.post("/documents/{document_id}/share")
+async def share_document(payload: ShareDocumentRequest, document_id: UUID, current_user = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    message = await share_document_with_user(payload, document_id, UUID(current_user.id), db)
+    return message
+
+@router.get("/shared_documents", response_model=List[SharedDocumentResponse])
+async def get_shared_documents(current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    return await get_shared_documents_for_user(current_user,db)

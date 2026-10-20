@@ -4,8 +4,8 @@ import os
 import firebase_admin
 from firebase_admin import auth, credentials
 from sqlalchemy.ext.asyncio import AsyncSession
-from db.crud.deps import get_db
-from db.crud.users import get_or_create_user 
+from app.db.crud.deps import get_db
+from app.db.crud.users import get_or_create_user 
 
 router = APIRouter()
 
@@ -30,10 +30,10 @@ async def google_login(payload: GoogleLoginPayload, db: AsyncSession = Depends(g
     user_info = verify_google_token(payload.id_token)
 
     # Upsert user in DB
-    user_id = await get_or_create_user(db, user_info)
+    user = await get_or_create_user(db, user_info)
 
     return {
-        "user_id": str(user_id),
+        "user_id": str(user.id),
         "email": user_info["email"],
         "name": user_info["name"]
     }
