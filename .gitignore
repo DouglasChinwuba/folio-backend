@@ -1,6 +1,17 @@
+# Environment variables
 .env
+.env.*
+!.env.example
+
+# Python virtual environments
 folioenv/
 venv/
 .venv/
 env/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Firebase service account credentials
 app/folio-firebase-app-firebase-adminsdk-fbsvc-6b070afcef.json
