@@ -5,7 +5,7 @@ import os
 from app.db.crud.deps import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import DocumentCreate, ShareDocumentRequest, SharedDocumentResponse
-from app.db.crud.documents import create_document, get_documents_for_user, delete_user_document, share_document_with_user, get_shared_documents_for_user
+from app.db.crud.documents import create_document, get_documents_for_user, delete_user_document, share_document_with_user, get_shared_documents_for_user, get_download_url
 from app.auth.dependencies import get_current_user
 from uuid import UUID
 from typing import List
@@ -73,3 +73,7 @@ async def share_document(payload: ShareDocumentRequest, document_id: UUID, curre
 @router.get("/shared_documents", response_model=List[SharedDocumentResponse])
 async def get_shared_documents(current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     return await get_shared_documents_for_user(current_user,db)
+
+@router.get("/documents/{document_id}/download")
+async def get_download_document (document_id: str, db: AsyncSession = Depends(get_db), current_user = Depends(get_current_user)):
+    return await get_download_url(document_id, db, current_user)   

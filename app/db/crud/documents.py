@@ -136,3 +136,43 @@ async def get_shared_documents_for_user(current_user, db: AsyncSession):
     shared_docs = result.scalars().all()
     
     return shared_docs
+
+def generate_download_url(s3_key: str, filename: str):
+    return s3_client.generate_presigned_url(
+        "get_object",
+        Params={
+            "Bucket": os.getenv("BUCKET_NAME"),
+            "Key": s3_key,
+            "ResponseContentDisposition": f'attachment; filename="{filename}"'
+        },
+        ExpiresIn=300
+    )
+
+async def get_download_url(document_id: str, db: AssertionError, current_user):
+    result = await db.execute(
+        select(Document).where(Document.id == document_id)
+    )
+
+    document = result.scalar_one_or_none()
+
+    if not document:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+    if document.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to download this document"
+        )
+
+    download_url = generate_download_url(
+        document.s3_key,
+        document.filename
+    )
+
+    return {
+        "download_url": download_url
+    }
+

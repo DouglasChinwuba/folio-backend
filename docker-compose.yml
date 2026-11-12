@@ -1,5 +1,7 @@
 services:
   backend:
+    platform: linux/arm64
+    image: folio-backend:latest
     build:
       context: .
       dockerfile: Dockerfile
